@@ -1,0 +1,115 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../controllers/task_controller.dart';
+import '../models/task.dart';
+
+class AddTaskView extends StatefulWidget {
+  final Task? task;
+  const AddTaskView({super.key, this.task});
+
+  @override
+  State<AddTaskView> createState() => _AddTaskViewState();
+}
+
+class _AddTaskViewState extends State<AddTaskView> {
+  final _formKey = GlobalKey<FormState>();
+  late String _title;
+  late String _description;
+  DateTime _dueDate = DateTime.now();
+  bool _repeat = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.task != null) {
+      _title = widget.task!.title;
+      _description = widget.task!.description;
+      _dueDate = widget.task!.dueDate;
+      _repeat = widget.task!.repeat;
+    } else {
+      _title = '';
+      _description = '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taskController = Provider.of<TaskController>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.task == null ? 'Add Task' : 'Edit Task')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                initialValue: _title,
+                decoration: const InputDecoration(labelText: 'Title'),
+                validator: (val) => val!.isEmpty ? 'Title required' : null,
+                onSaved: (val) => _title = val!,
+              ),
+              TextFormField(
+                initialValue: _description,
+                decoration: const InputDecoration(labelText: 'Description'),
+                onSaved: (val) => _description = val ?? '',
+              ),
+              Row(
+                children: [
+                  Text('Due Date: ${_dueDate.toLocal()}'.split(' ')[0]),
+                  IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: () async {
+                      DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: _dueDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) setState(() => _dueDate = picked);
+                    },
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Text('Repeat Task?'),
+                  Switch(
+                    value: _repeat,
+                    onChanged: (val) => setState(() => _repeat = val),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    if (widget.task == null) {
+                      taskController.addTask(Task(
+                        id: DateTime.now().millisecondsSinceEpoch,
+                        title: _title,
+                        description: _description,
+                        dueDate: _dueDate,
+                        repeat: _repeat,
+                      ));
+                    } else {
+                      widget.task!.title = _title;
+                      widget.task!.description = _description;
+                      widget.task!.dueDate = _dueDate;
+                      widget.task!.repeat = _repeat;
+                      taskController.editTask(widget.task!);
+                    }
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(widget.task == null ? 'Add Task' : 'Save Task'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
